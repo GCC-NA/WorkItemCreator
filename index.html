@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genesys Work Item Creator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #F4F5F7;
+            color: #333;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #FF4F1F;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #FF4F1F;
+            color: white;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background-color: #D73B1F;
+        }
+
+        .form-fields {
+            text-align: left;
+            margin-top: 20px;
+        }
+
+        .form-fields label {
+            font-weight: 400;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Genesys Work Item Creator</h2>
+
+        <label for="clientId">Client ID:</label>
+        <input type="text" id="clientId" required>
+
+        <label for="clientSecret">Client Secret:</label>
+        <input type="password" id="clientSecret" required>
+
+        <label for="region">Region:</label>
+        <input type="text" id="region" placeholder="e.g., us-east-1, usw2" required>
+
+        <button onclick="fetchWorkbins()">Fetch Workbins</button>
+
+        <h3>Workbin:</h3>
+        <select id="workbinSelect" onchange="fetchWorkTypes()">
+            <option value="">Select a workbin</option>
+        </select>
+
+        <h3>Work Type:</h3>
+        <select id="workTypeSelect" onchange="fetchSchemaFields()">
+            <option value="">Select a work type</option>
+        </select>
+
+        <h3>Required Fields:</h3>
+        <input type="hidden" id="schemaId">
+        <div id="formFields" class="form-fields"></div>
+
+        <button onclick="createWorkItem()">Create Work Item</button>
+    </div>
+
+    <script>
+        const API_URL = "https://6l6gcgq3dz6de5x5fvdre3yspy0eonny.lambda-url.us-east-2.on.aws/";
+
+        async function fetchWorkbins() {
+            const clientId = document.getElementById("clientId").value;
+            const clientSecret = document.getElementById("clientSecret").value;
+            const region = document.getElementById("region").value;
+
+            if (!clientId || !clientSecret || !region) {
+                alert("Please enter Client ID, Client Secret, and Region.");
+                return;
+            }
+
+            const requestBody = { path: "/workbins", clientId, clientSecret, region };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    mode: "cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "Failed to fetch workbins.");
+
+                const dropdown = document.getElementById("workbinSelect");
+                dropdown.innerHTML = "<option value=''>Select a workbin</option>";
+                data.entities.forEach(workbin => {
+                    let option = document.createElement("option");
+                    option.value = workbin.id;
+                    option.textContent = workbin.name;
+                    dropdown.appendChild(option);
+                });
+
+                alert("Workbins loaded successfully!");
+            } catch (error) {
+                alert("Failed to fetch workbins: " + error.message);
+            }
+        }
+
+        async function fetchWorkTypes() {
+            const clientId = document.getElementById("clientId").value;
+            const clientSecret = document.getElementById("clientSecret").value;
+            const region = document.getElementById("region").value;
+            const workbinId = document.getElementById("workbinSelect").value;
+
+            if (!workbinId) {
+                alert("Please select a workbin first.");
+                return;
+            }
+
+            const requestBody = { path: "/worktypes", clientId, clientSecret, workbinId, region };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    mode: "cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "Failed to fetch work types.");
+
+                const dropdown = document.getElementById("workTypeSelect");
+                dropdown.innerHTML = "<option value=''>Select a work type</option>";
+                data.entities.forEach(workType => {
+                    let option = document.createElement("option");
+                    option.value = workType.id;
+                    option.textContent = workType.name;
+                    dropdown.appendChild(option);
+                });
+
+                alert("Work Types loaded successfully!");
+            } catch (error) {
+                alert("Failed to fetch work types: " + error.message);
+            }
+        }
+
+async function fetchSchemaFields() {
+    const clientId = document.getElementById("clientId").value;
+    const clientSecret = document.getElementById("clientSecret").value;
+    const region = document.getElementById("region").value;
+    const workTypeId = document.getElementById("workTypeSelect").value;
+
+    if (!workTypeId) {
+        alert("Please select a work type first.");
+        return;
+    }
+
+    const requestBody = { path: "/schema-fields", clientId, clientSecret, workTypeId, region };
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Failed to fetch schema fields.");
+
+        document.getElementById("schemaId").value = data.schemaId || "";
+        const form = document.getElementById("formFields");
+        form.innerHTML = ""; // Clear previous fields
+
+        if (!data.fields || Object.keys(data.fields).length === 0) {
+            console.log("No custom fields required.");
+            return;
+        }
+
+        Object.keys(data.fields).forEach(fieldName => {
+            const field = data.fields[fieldName];
+            const label = document.createElement("label");
+            label.textContent = field.title || fieldName;
+
+            let input;
+
+            if (field.enum) {
+                input = document.createElement("select");
+                input.dataset.type = "enum";
+                field.enum.forEach(optionValue => {
+                    let option = document.createElement("option");
+                    option.value = optionValue;
+                    option.textContent = optionValue;
+                    input.appendChild(option);
+                });
+            } else if (field.type === "boolean") {
+                input = document.createElement("input");
+                input.type = "checkbox";
+                input.dataset.type = "boolean";
+            } else if (field.type === "string" && field.format === "date-time") {
+                input = document.createElement("input");
+                input.type = "datetime-local";
+                input.dataset.type = "date";
+            } else if (field.type === "integer" || field.type === "number") {
+                input = document.createElement("input");
+                input.type = "number";
+                input.dataset.type = "number";
+            } else {
+                input = document.createElement("input");
+                input.type = "text";
+                input.dataset.type = "string";
+            }
+
+            input.name = fieldName;
+            input.id = fieldName;
+
+            form.appendChild(label);
+            form.appendChild(input);
+            form.appendChild(document.createElement("br"));
+        });
+
+        alert("Schema fields loaded successfully!");
+    } catch (error) {
+        alert("Failed to fetch schema fields: " + error.message);
+    }
+}
+
+   async function createWorkItem() {
+    const clientId = document.getElementById("clientId").value;
+    const clientSecret = document.getElementById("clientSecret").value;
+    const region = document.getElementById("region").value;
+    const workbinId = document.getElementById("workbinSelect").value;
+    const workTypeId = document.getElementById("workTypeSelect").value;
+    const schemaId = document.getElementById("schemaId").value;
+
+    if (!workbinId || !workTypeId) {
+        alert("Missing required fields.");
+        return;
+    }
+
+    let formData = {};
+
+    // ✅ Loop through form fields and apply correct types
+    document.querySelectorAll("#formFields input, #formFields select").forEach(input => {
+        if (input.type === "checkbox") {
+            formData[input.name] = input.checked;
+        } else if (input.type === "datetime-local") {
+            formData[input.name] = input.value ? new Date(input.value).toISOString() : null;
+        } else if (input.type === "number") {
+            formData[input.name] = input.value ? Number(input.value) : null;
+        } else if (input.dataset.type === "enum") {
+            formData[input.name] = input.value || null;
+        } else {
+            formData[input.name] = input.value || null;
+        }
+    });
+
+    // ✅ Allow empty formData
+    if (Object.keys(formData).length === 0) {
+        formData = null;
+    }
+
+    const requestBody = {
+        path: "/create-workitem",
+        clientId,
+        clientSecret,
+        workbinId,
+        workTypeId,
+        schemaId: schemaId || null, // Allow empty schemaId
+        region,
+        formData
+    };
+
+    console.log("📤 JSON Payload Sent to Lambda:", JSON.stringify(requestBody, null, 2));
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+        console.log("✅ Work Item Creation Response:", data);
+
+        if (!response.ok) throw new Error(data.error || "Failed to create work item.");
+
+        alert(`✅ Work Item Created Successfully! ID: ${data.id}`);
+    } catch (error) {
+        console.error("❌ Work Item Creation Error:", error);
+        alert("Failed to create work item: " + error.message);
+    }
+}
+
+
+
+    </script>
+
+</body>
+</html>
